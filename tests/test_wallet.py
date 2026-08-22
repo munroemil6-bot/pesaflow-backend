@@ -1,1 +1,1 @@
-# TODO Nasra: Test wallet retrieval, balances, beneficiaries, and validation failures.
+# TODO Nasra: Test wallet/balance GET APIs, beneficiary CRUD APIs, relations, and validation.

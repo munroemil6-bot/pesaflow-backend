@@ -1,1 +1,1 @@
-# TODO Naomi: Test transfers, transaction history, detail views, and admin access.
+# TODO Naomi: Test transfer POST, history/detail GET APIs, transaction relations, and admin roles.

@@ -1,1 +1,7 @@
-# TODO Myles: Create the application from app.create_app and add the development entry point.
+from app import create_app
+
+app = create_app()
+
+
+if __name__ == "__main__":
+	app.run(debug=True)

@@ -1,1 +1,1 @@
-# TODO Mason: Test registration, login, current-user, profile, and authorization flows.
+# TODO Mason: Test REST JSON registration/login/current-user/profile responses and JWT rules.
