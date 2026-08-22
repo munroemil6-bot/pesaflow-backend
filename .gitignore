@@ -1,0 +1,14 @@
+# Local environment and secrets
+.env
+.venv/
+__pycache__/
+*.py[cod]
+
+# Test and tooling output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local database and editor files
+*.db
+.vscode/
