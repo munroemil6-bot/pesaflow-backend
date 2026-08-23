@@ -167,7 +167,7 @@ constraints, and migration support.
 Registration accepts `full_name`, `email`, `phone`, and `password`. Passwords
 must be hashed and never returned.
 
-### Nasra: Wallet and Beneficiaries
+### Naomi: Wallet and Beneficiaries
 
 | Method | Endpoint                  | Responsibility                   |
 | ------ | ------------------------- | -------------------------------- |
@@ -179,7 +179,7 @@ must be hashed and never returned.
 | PUT    | `/api/beneficiaries/<id>` | Update one owned beneficiary     |
 | DELETE | `/api/beneficiaries/<id>` | Delete one owned beneficiary     |
 
-### Naomi: Transactions and Admin
+### Nasra: Transactions and Admin
 
 | Method | Endpoint                  | Responsibility                                   |
 | ------ | ------------------------- | ------------------------------------------------ |
@@ -215,8 +215,8 @@ duplicate callback cannot credit the same Wallet twice.
 `app/services.py` is divided by feature:
 
 - Mason: `register_user`, `login_user`, `get_current_user`, `update_profile`
-- Nasra: wallet, balance, and beneficiary CRUD services
-- Naomi: transaction, history, detail, and admin services
+- Naomi: wallet, balance, and beneficiary CRUD services
+- Nasra: transaction, history, detail, and admin services
 - Myles: `get_mpesa_access_token`, `initiate_stk_push`, and
   `handle_mpesa_callback`
 
@@ -228,8 +228,8 @@ and keep database transactions inside the service layer.
 ```text
 main
 ├── backend-auth          # Mason
-├── backend-wallet        # Nasra
-├── backend-transactions  # Naomi
+├── backend-wallet        # Naomi
+├── backend-transactions  # Nasra
 └── backend-mpesa         # Myles
 ```
 
@@ -242,8 +242,8 @@ merges branches.
 1. Myles confirms the app factory, configuration, health route, and Pipenv setup.
 2. The team agrees on model fields, relationships, statuses, and money rules.
 3. Mason implements authentication and profile APIs.
-4. Nasra implements wallet and beneficiary APIs.
-5. Naomi implements transfer and admin APIs.
+4. Naomi implements wallet and beneficiary APIs.
+5. Nasra implements transfer and admin APIs.
 6. Myles integrates Daraja sandbox STK Push and callbacks.
 7. The frontend replaces localStorage actions with API requests.
 8. The team runs tests and completes the registration-to-wallet-funding demo.

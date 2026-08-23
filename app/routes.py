@@ -27,35 +27,35 @@ def register_routes(app: Flask) -> None:
 	# PUT /api/users/me -> JWT + JSON editable profile fields; update the User record.
 	# @app.put("/api/users/me") -> Mason adds handler calling update_profile().
 
-	# NASRA: WALLET AND BENEFICIARIES
+	# NAOMI: WALLET AND BENEFICIARIES
 	# GET /api/wallet -> JWT; return the authenticated user's Wallet and balance.
-	# @app.get("/api/wallet") -> Nasra adds handler calling get_wallet().
+	# @app.get("/api/wallet") -> Naomi adds handler calling get_wallet().
 	# GET /api/wallet/balance -> JWT; return JSON {balance, currency} for the dashboard.
-	# @app.get("/api/wallet/balance") -> Nasra adds handler calling get_wallet_balance().
+	# @app.get("/api/wallet/balance") -> Naomi adds handler calling get_wallet_balance().
 	# GET /api/beneficiaries -> JWT; return only Beneficiary rows owned by current User.
-	# @app.get("/api/beneficiaries") -> Nasra adds handler calling get_beneficiaries().
+	# @app.get("/api/beneficiaries") -> Naomi adds handler calling get_beneficiaries().
 	# POST /api/beneficiaries -> JWT + JSON {name, phone}; create a Beneficiary for current User.
-	# @app.post("/api/beneficiaries") -> Nasra adds handler calling create_beneficiary().
+	# @app.post("/api/beneficiaries") -> Naomi adds handler calling create_beneficiary().
 	# GET /api/beneficiaries/<id> -> JWT; return the record only when current User owns it.
-	# @app.get("/api/beneficiaries/<int:beneficiary_id>") -> Nasra adds detail handler.
+	# @app.get("/api/beneficiaries/<int:beneficiary_id>") -> Naomi adds detail handler.
 	# PUT /api/beneficiaries/<id> -> JWT + JSON fields; update the owned Beneficiary.
-	# @app.put("/api/beneficiaries/<int:beneficiary_id>") -> Nasra adds update handler.
+	# @app.put("/api/beneficiaries/<int:beneficiary_id>") -> Naomi adds update handler.
 	# DELETE /api/beneficiaries/<id> -> JWT; delete the owned Beneficiary and return 204.
-	# @app.delete("/api/beneficiaries/<int:beneficiary_id>") -> Nasra adds delete handler.
+	# @app.delete("/api/beneficiaries/<int:beneficiary_id>") -> Naomi adds delete handler.
 
-	# NAOMI: TRANSFERS AND ADMIN WORKSPACE
+	# NASRA: TRANSFERS AND ADMIN WORKSPACE
 	# POST /api/transactions -> JWT + JSON {recipient_id|phone, amount, description}; create transfer.
-	# @app.post("/api/transactions") -> Naomi adds handler calling create_transaction().
+	# @app.post("/api/transactions") -> Nasra adds handler calling create_transaction().
 	# GET /api/transactions -> JWT; return current user's transactions with optional status/type filters.
-	# @app.get("/api/transactions") -> Naomi adds handler calling get_transactions().
+	# @app.get("/api/transactions") -> Nasra adds handler calling get_transactions().
 	# GET /api/transactions/<id> -> JWT; return a transaction visible to its sender or recipient.
-	# @app.get("/api/transactions/<int:transaction_id>") -> Naomi adds detail handler.
+	# @app.get("/api/transactions/<int:transaction_id>") -> Nasra adds detail handler.
 	# GET /api/admin/users -> JWT + admin role; return users, balances, counts, and account statuses.
-	# @app.get("/api/admin/users") -> Naomi adds handler calling get_admin_users().
+	# @app.get("/api/admin/users") -> Nasra adds handler calling get_admin_users().
 	# GET /api/admin/transactions -> JWT + admin role; return searchable platform transactions.
-	# @app.get("/api/admin/transactions") -> Naomi adds handler calling get_admin_transactions().
+	# @app.get("/api/admin/transactions") -> Nasra adds handler calling get_admin_transactions().
 	# GET /api/admin/analytics -> JWT + admin role; return volume, revenue, growth, and active users.
-	# @app.get("/api/admin/analytics") -> Naomi adds handler calling get_admin_analytics().
+	# @app.get("/api/admin/analytics") -> Nasra adds handler calling get_admin_analytics().
 
 	# MYLES: M-PESA DARAJA INTEGRATION
 	# POST /api/mpesa/stk-push -> JWT + JSON {phone_number, amount}; create pending wallet funding.
