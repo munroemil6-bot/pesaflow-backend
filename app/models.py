@@ -60,6 +60,33 @@ class User(db.Model):
 			"created_at": self.created_at.isoformat() if self.created_at else None,
 			"updated_at": self.updated_at.isoformat() if self.updated_at else None,
 		}
+
+
+class MpesaTransaction(db.Model):
+	__tablename__ = "mpesa_transactions"
+
+	id = db.Column(db.Integer, primary_key=True)
+	transaction_id = db.Column(
+		db.Integer, ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False, unique=True
+	)
+	phone = db.Column(String(30), nullable=False)
+	amount = db.Column(Numeric(18, 2), nullable=False)
+	merchant_request_id = db.Column(String(100), nullable=True, index=True)
+	checkout_request_id = db.Column(String(100), nullable=True, unique=True, index=True)
+	receipt = db.Column(String(100), nullable=True, unique=True)
+	result_code = db.Column(db.Integer, nullable=True)
+	result_description = db.Column(String(255), nullable=True)
+	status = db.Column(
+		String(20), nullable=False, default="pending", server_default="pending", index=True
+	)
+	created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+	updated_at = db.Column(
+		db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+	)
+
+	transaction = relationship("Transaction", back_populates="mpesa_transaction")
+
+
 # TODO Naomi: Wallet fields: id, user_id, balance, currency, timestamps.
 # TODO Naomi: Relationship: Wallet belongs to exactly one User through user_id.
 # TODO Naomi: Beneficiary fields: id, user_id, name, phone, created_at.

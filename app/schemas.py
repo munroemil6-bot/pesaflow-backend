@@ -1,4 +1,5 @@
-# TODO Myles: Starting imports for Marshmallow request validation and JSON serialization.
+from decimal import Decimal
+
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
 # API SCHEMAS: Validate JSON request bodies and serialize JSON responses.
@@ -52,6 +53,17 @@ class UpdateProfileSchema(Schema):
 			raise ValidationError("Provide at least one profile field.", field_name="_schema")
 		if "full_name" in data and not data["full_name"].strip():
 			raise ValidationError("Full name cannot be blank.", field_name="full_name")
+
+
+class MpesaSTKSchema(Schema):
+	phone_number = fields.String(required=True, validate=validate.Length(min=9, max=30))
+	amount = fields.Decimal(
+		required=True,
+		as_string=True,
+		validate=validate.Range(min=Decimal("0.01")),
+	)
+
+
 # TODO Naomi: WalletSchema for GET /api/wallet and GET /api/wallet/balance responses.
 # TODO Naomi: BeneficiarySchema for beneficiary create, update, list, and detail payloads.
 # TODO Nasra: TransferSchema for POST /api/transactions transfer input and money rules.
