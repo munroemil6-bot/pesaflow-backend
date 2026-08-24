@@ -1,9 +1,8 @@
 # TODO Myles: Starting imports for SQLAlchemy models and migration metadata.
-from ast import Index
 from datetime import datetime
 
 from app import db
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, Index, Numeric, String
 from sqlalchemy.orm import relationship
 
 # DATABASE MODELS: SQLAlchemy classes mapped to PostgreSQL tables.
@@ -46,7 +45,7 @@ class Beneficiary(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
     __table_args__ = (  
         Index('idx_beneficiary_user_id', 'user_id'),
