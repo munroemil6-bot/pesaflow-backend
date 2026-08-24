@@ -15,3 +15,8 @@ from marshmallow import Schema, fields, validate
 # TODO Nasra: TransactionSchema for transaction list and detail response payloads.
 # TODO Myles: MpesaSTKSchema for POST /api/mpesa/stk-push: phone_number and amount.
 # TODO Team: Return consistent JSON validation errors and never serialize secrets.
+
+class WalletSchema(Schema):
+    balance = fields.Decimal(as_string=True)
+    currency = fields.String(validate=validate.Length(equal=3))
+    user_id = fields.Integer()
