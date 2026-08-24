@@ -1,4 +1,5 @@
 # TODO Myles: Starting imports for SQLAlchemy models and migration metadata.
+from ast import Index
 from datetime import datetime
 
 from app import db
@@ -37,3 +38,16 @@ class Wallet(db.Model):
     currency = db.Column(db.String(3), default='KES', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+class Beneficiary(db.Model):  
+    __tablename__ = 'beneficiaries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.now, nullable=False)
+
+    __table_args__ = (  
+        Index('idx_beneficiary_user_id', 'user_id'),
+    )
