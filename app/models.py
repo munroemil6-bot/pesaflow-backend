@@ -9,6 +9,7 @@ from sqlalchemy.orm import relationship
 # TODO Myles: Shared class naming: User, Wallet, Beneficiary, Transaction, MpesaTransaction.
 # TODO Mason: class User(db.Model): one User owns one Wallet and many Beneficiaries.
 # TODO Mason: User also connects to Transactions through sender_id and recipient_id.
+# TODO Naomi: class Wallet(db.Model): user_id is a unique foreign key to User.id.
 # TODO Naomi: class Beneficiary(db.Model): user_id is a foreign key to User.id.
 # TODO Naomi: class Wallet(db.Model): user_id is a unique foreign key to User.id.
 # TODO Nasra: class Transaction(db.Model): sender_id and recipient_id both reference User.id.
