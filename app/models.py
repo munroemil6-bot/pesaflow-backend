@@ -1,4 +1,3 @@
-# TODO Myles: Starting imports for SQLAlchemy models and migration metadata.
 from datetime import datetime
 
 from app import db
