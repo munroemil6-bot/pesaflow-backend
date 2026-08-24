@@ -71,7 +71,16 @@ class MpesaSTKSchema(Schema):
 # TODO Myles: MpesaSTKSchema for POST /api/mpesa/stk-push: phone_number and amount.
 # TODO Team: Return consistent JSON validation errors and never serialize secrets.
 
+
 class WalletSchema(Schema):
     balance = fields.Decimal(as_string=True)
     currency = fields.String(validate=validate.Length(equal=3))
     user_id = fields.Integer()
+
+
+class BeneficiarySchema(Schema):
+    id = fields.Integer()
+    user_id = fields.Integer()
+    name = fields.String(required=True, validate=validate.Length(min=2, max=130))
+    phone = fields.String(required=True, validate=validate.Length(min=10, max=19))
+    created_at = fields.DateTime()
