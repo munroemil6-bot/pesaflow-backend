@@ -23,7 +23,26 @@ from sqlalchemy.orm import relationship
 # TODO Nasra: Transaction fields: sender_id, recipient_id, amount, fee, total_amount,
 # TODO Nasra: status, reference, description, and created_at.
 # TODO Nasra: Relationships: Transaction links sender and recipient to User records.
-# TODO Myles: MpesaTransaction fields: transaction_id, phone, amount, request IDs,
-# TODO Myles: receipt, result code/description, status, and timestamps.
-# TODO Myles: Relationship: each MpesaTransaction belongs to one Transaction.
+
+
+class MpesaTransaction(db.Model):
+	__tablename__ = "mpesa_transactions"
+
+	id = db.Column(db.Integer, primary_key=True)
+	transaction_id = db.Column(
+		db.Integer, ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False, unique=True
+	)
+	phone = db.Column(String(30), nullable=False)
+	amount = db.Column(Numeric(18, 2), nullable=False)
+	merchant_request_id = db.Column(String(100), nullable=True, index=True)
+	checkout_request_id = db.Column(String(100), nullable=True, unique=True, index=True)
+	receipt = db.Column(String(100), nullable=True, unique=True)
+	result_code = db.Column(db.Integer, nullable=True)
+	result_description = db.Column(String(255), nullable=True)
+	status = db.Column(String(20), nullable=False, default="pending", server_default="pending", index=True)
+	created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+	updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+	transaction = relationship("Transaction", back_populates="mpesa_transaction")
+
 # TODO Team: Add constraints, indexes, decimal money types, and migration-ready metadata.
