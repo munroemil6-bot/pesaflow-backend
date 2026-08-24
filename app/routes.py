@@ -1,4 +1,19 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from flask_jwt_extended import jwt_required
+from marshmallow import ValidationError
+
+from app.schemas import LoginSchema, RegisterSchema, UpdateProfileSchema
+from app.services import ServiceError, get_current_user, login_user, register_user, update_profile
+
+
+def _json_body(schema):
+	data = request.get_json(silent=True)
+	if not isinstance(data, dict):
+		return None, (jsonify({"error": "Request body must be a JSON object."}), 400)
+	try:
+		return schema.load(data), None
+	except ValidationError as error:
+		return None, (jsonify({"errors": error.messages}), 400)
 
 
 def register_routes(app: Flask) -> None:
@@ -9,6 +24,10 @@ def register_routes(app: Flask) -> None:
 		"""Return a readiness response for local development and monitoring."""
 		return jsonify({"status": "ok", "service": "pesaflow-backend"})
 
+	@app.errorhandler(ServiceError)
+	def handle_service_error(error):
+		return jsonify({"error": error.message}), error.status_code
+
 	# API TYPE: REST over HTTP. Requests and responses use JSON.
 	# AUTHENTICATION: Protected routes require a JWT bearer token after login.
 	# AUTHORIZATION: Admin routes additionally require the authenticated user role=admin.
@@ -17,15 +36,39 @@ def register_routes(app: Flask) -> None:
 
 	# MASON: AUTHENTICATION AND PROFILE
 	# POST /api/auth/register -> JSON {full_name, email, phone, password}; create User and Wallet.
-	# @app.post("/api/auth/register") -> Mason adds handler calling register_user().
+	@app.post("/api/auth/register")
+	def register():
+		data, error = _json_body(RegisterSchema())
+		if error:
+			return error
+		user = register_user(data)
+		return jsonify({"user": user.to_dict()}), 201
 	# POST /api/auth/login -> JSON {email, password}; verify password hash and return JWT.
-	# @app.post("/api/auth/login") -> Mason adds handler calling login_user().
+	@app.post("/api/auth/login")
+	def login():
+		data, error = _json_body(LoginSchema())
+		if error:
+			return error
+		return jsonify(login_user(data))
 	# GET /api/auth/me -> JWT; return the authenticated User profile as JSON.
-	# @app.get("/api/auth/me") -> Mason adds handler using the JWT identity.
+	@app.get("/api/auth/me")
+	@jwt_required()
+	def auth_me():
+		return jsonify({"user": get_current_user().to_dict()})
 	# GET /api/users/me -> JWT; return the authenticated User profile as JSON.
-	# @app.get("/api/users/me") -> Mason adds handler calling get_current_user().
+	@app.get("/api/users/me")
+	@jwt_required()
+	def current_profile():
+		return jsonify({"user": get_current_user().to_dict()})
 	# PUT /api/users/me -> JWT + JSON editable profile fields; update the User record.
-	# @app.put("/api/users/me") -> Mason adds handler calling update_profile().
+	@app.put("/api/users/me")
+	@jwt_required()
+	def update_current_profile():
+		data, error = _json_body(UpdateProfileSchema())
+		if error:
+			return error
+		user = update_profile(get_current_user(), data)
+		return jsonify({"user": user.to_dict()})
 
 	# NAOMI: WALLET AND BENEFICIARIES
 	# GET /api/wallet -> JWT; return the authenticated user's Wallet and balance.
