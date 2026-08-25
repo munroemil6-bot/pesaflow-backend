@@ -19,8 +19,8 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    # Django Admin
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
+    path("api/", include("accounts.urls")),
     
     # Mason: User Authentication & Accounts
     path('api/accounts/', include('accounts.urls')),
