@@ -63,14 +63,6 @@ class MpesaSTKSchema(Schema):
 		validate=validate.Range(min=Decimal("0.01")),
 	)
 
-
-# TODO Naomi: WalletSchema for GET /api/wallet and GET /api/wallet/balance responses.
-# TODO Naomi: BeneficiarySchema for beneficiary create, update, list, and detail payloads.
-# TODO Nasra: TransferSchema for POST /api/transactions transfer input and money rules.
-# TODO Nasra: TransactionSchema for transaction list and detail response payloads.
-# TODO Myles: MpesaSTKSchema for POST /api/mpesa/stk-push: phone_number and amount.
-# TODO Team: Return consistent JSON validation errors and never serialize secrets.
-
 class WalletSchema(Schema):
     balance = fields.Decimal(as_string=True)
     currency = fields.String(validate=validate.Length(equal=3))
@@ -83,4 +75,13 @@ class BeneficiarySchema(Schema):
     name = fields.String(required=True, validate=validate.Length(min=2, max=130))
     phone = fields.String(required=True, validate=validate.Length(min=10, max=19))
     created_at = fields.DateTime()
+
+
+    # TODO Naomi: WalletSchema for GET /api/wallet and GET /api/wallet/balance responses.
+# TODO Naomi: BeneficiarySchema for beneficiary create, update, list, and detail payloads.
+# TODO Nasra: TransferSchema for POST /api/transactions transfer input and money rules.
+# TODO Nasra: TransactionSchema for transaction list and detail response payloads.
+# TODO Myles: MpesaSTKSchema for POST /api/mpesa/stk-push: phone_number and amount.
+# TODO Team: Return consistent JSON validation errors and never serialize secrets.
+
 

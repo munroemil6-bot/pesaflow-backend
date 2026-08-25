@@ -86,6 +86,79 @@ def register_routes(app: Flask) -> None:
 	# DELETE /api/beneficiaries/<id> -> JWT; delete the owned Beneficiary and return 204.
 	# @app.delete("/api/beneficiaries/<int:beneficiary_id>") -> Naomi adds delete handler.
 
+@app.get("/api/wallet")
+@jwt_required()
+def get_wallet():
+    """Get authenticated user's wallet"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Find or create wallet for user
+        wallet = Wallet.query.filter_by(user_id=current_user_id).first()
+        
+        if not wallet:
+            # Create wallet if it doesn't exist
+            wallet = Wallet(
+                user_id=current_user_id,
+                balance=Decimal('0.00'),
+                currency='KES'
+            )
+            db.session.add(wallet)
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'data': wallet_schema.dump(wallet)
+        }), 200
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': 'Database error occurred'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@app.get("/api/wallet/balance")
+@jwt_required()
+def get_wallet_balance():
+    """Get wallet balance for dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        wallet = Wallet.query.filter_by(user_id=current_user_id).first()
+        
+        if not wallet:
+            return jsonify({
+                'status': 'error',
+                'message': 'Wallet not found'
+            }), 404
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'balance': str(wallet.balance),
+                'currency': wallet.currency
+            }
+        }), 200
+        
+    except SQLAlchemyError as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'Database error occurred'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 	# NASRA: TRANSFERS AND ADMIN WORKSPACE
 	# POST /api/transactions -> JWT + JSON {recipient_id|phone, amount, description}; create transfer.
 	# @app.post("/api/transactions") -> Nasra adds handler calling create_transaction().
