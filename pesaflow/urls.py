@@ -1,5 +1,5 @@
 """
-URL configuration for pesaflow project.
+URL configuration for the PesaFlow project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
@@ -16,26 +16,26 @@ ROUTING STRUCTURE:
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    
+
     # Mason: User Authentication & Accounts
-    path('api/accounts/', include('accounts.urls')),
-    
+    path("api/accounts/", include("accounts.urls")),
+
     # Naomi: Wallet Management
-    path('api/wallet/', include('wallet.urls')),
-    
+    path("api/wallet/", include("wallet.urls")),
+
     # Naomi: Beneficiary Management
-    path('api/beneficiaries/', include('beneficiaries.urls')),
-    
+    path("api/beneficiaries/", include("beneficiaries.urls")),
+
     # Nasra: Transaction History & Transfers
-    path('api/transactions/', include('transactions.urls')),
-    
+    path("api/transactions/", include("transactions.urls")),
+
     # Myles: M-PESA Payments
-    path('api/payments/', include('payments.urls')),
-    
+    path("api/payments/", include("payments.urls")),
+
     # Nasra: Admin Dashboard & Analytics
-    path('api/admin-dashboard/', include('admin_dashboard.urls')),
+    path("api/admin-dashboard/", include("admin_dashboard.urls")),
 ]
