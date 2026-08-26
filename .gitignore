@@ -11,4 +11,5 @@ htmlcov/
 
 # Local database and editor files
 *.db
+db.sqlite3
 .vscode/
