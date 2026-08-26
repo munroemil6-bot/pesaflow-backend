@@ -30,6 +30,11 @@ class MpesaSTKSerializer(serializers.Serializer):
 			)
 		return value
 
+	def validate_amount(self, value):
+		if value <= 0:
+			raise serializers.ValidationError('Amount must be greater than zero.')
+		return value
+
 # TODO: MpesaTransactionSerializer implementation
 # TODO: PaymentStatusSerializer implementation
 # TODO: CallbackSerializer for webhook validation
