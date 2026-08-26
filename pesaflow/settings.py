@@ -63,8 +63,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'sms.urls'
-
+ROOT_URLCONF = 'pesaflow.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -81,8 +80,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'sms.wsgi.application'
-
+WSGI_APPLICATION = 'pesaflow.wsgi.application'
 # Database
 DATABASES = {
     'default': {
