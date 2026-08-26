@@ -17,9 +17,10 @@ Notes:
 """
 
 from django.urls import path
+from .views import stk_push
 
 app_name = 'payments'
 
 urlpatterns = [
-    # TODO: Add URL patterns here
+    path('stk-push/', stk_push, name='stk-push'),
 ]
