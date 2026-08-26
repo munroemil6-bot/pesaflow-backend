@@ -52,6 +52,9 @@ INSTALLED_APPS = [
     'admin_dashboard.apps.AdminDashboardConfig',
 ]
 
+# Mason: use the accounts app's email-authenticated user model everywhere.
+AUTH_USER_MODEL = 'accounts.User'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -64,6 +67,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'pesaflow.urls'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -81,6 +85,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'pesaflow.wsgi.application'
+
 # Database
 DATABASES = {
     'default': {
