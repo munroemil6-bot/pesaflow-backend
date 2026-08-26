@@ -43,10 +43,91 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.views import TokenRefreshView
 
-# TODO: @api_view(['POST']) registration view
-# TODO: @api_view(['POST']) login view
-# TODO: @api_view(['POST']) token refresh view
-# TODO: @api_view(['GET', 'PUT']) profile view
-# TODO: @api_view(['POST']) logout view
-# TODO: @api_view(['POST']) change password view
+from .serializers import (
+    ChangePasswordSerializer,
+    LoginSerializer,
+    ProfileSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
+from .services import (
+    authenticate_user,
+    blacklist_refresh_token,
+    change_password as change_user_password,
+    generate_tokens,
+    register_user,
+    update_profile,
+)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register(request):
+    serializer = RegisterSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = register_user(serializer.validated_data)
+    return Response({"user": UserSerializer(user).data}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login(request):
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = authenticate_user(**serializer.validated_data)
+    if not user:
+        return Response(
+            {"detail": "Invalid email/phone or password."}, status=status.HTTP_401_UNAUTHORIZED
+        )
+    return Response({**generate_tokens(user), "user": UserSerializer(user).data})
+
+
+class RefreshTokenView(TokenRefreshView):
+    """Public endpoint that exchanges a valid refresh token for an access token."""
+
+    permission_classes = [AllowAny]
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def profile(request):
+    if request.method == "GET":
+        return Response({"user": UserSerializer(request.user).data})
+
+    serializer = ProfileSerializer(request.user, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    if not serializer.validated_data:
+        return Response(
+            {"detail": "Provide at least one profile field."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    user = update_profile(request.user, serializer.validated_data)
+    return Response({"user": UserSerializer(user).data})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    refresh_token = request.data.get("refresh")
+    if not refresh_token:
+        return Response({"refresh": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        blacklist_refresh_token(refresh_token)
+    except TokenError:
+        return Response({"refresh": ["Invalid or expired token."]}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    if not change_user_password(request.user, **serializer.validated_data):
+        return Response(
+            {"old_password": ["Current password is incorrect."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response({"detail": "Password changed successfully."})
