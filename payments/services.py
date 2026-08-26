@@ -1,4 +1,7 @@
 import requests
+import hashlib
+import hmac
+import json
 import os
 from requests.auth import HTTPBasicAuth
 from django.conf import settings
@@ -28,6 +31,10 @@ def _required_setting(name):
 
 def _generate_timestamp():
 	return datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+
+
+def generate_timestamp():
+	return _generate_timestamp()
 
 
 def get_mpesa_access_token():
@@ -129,6 +136,62 @@ def handle_mpesa_callback(data):
 		'phone_number': metadata.get('PhoneNumber'),
 		'transaction_date': metadata.get('TransactionDate'),
 	}
+
+
+def query_payment_status(checkout_request_id):
+	"""Query Daraja for the current status of an STK push."""
+	if not checkout_request_id:
+		raise ValueError('checkout_request_id is required')
+
+	shortcode = _required_setting('MPESA_SHORTCODE')
+	passkey = _required_setting('MPESA_PASSKEY')
+	timestamp = _generate_timestamp()
+	password = b64encode(f'{shortcode}{passkey}{timestamp}'.encode()).decode()
+	payload = {
+		'BusinessShortCode': shortcode,
+		'Password': password,
+		'Timestamp': timestamp,
+		'CheckoutRequestID': checkout_request_id,
+	}
+	response = requests.post(
+		f'{_daraja_base_url()}/mpesa/stkpushquery/v1/query',
+		json=payload,
+		headers={'Authorization': f'Bearer {get_mpesa_access_token()}'},
+		timeout=30,
+	)
+	response.raise_for_status()
+	return response.json()
+
+
+def validate_callback_signature(callback_data, timestamp, signature):
+	"""Validate a callback signature using the configured callback secret."""
+	secret = getattr(settings, 'MPESA_CALLBACK_SECRET', '')
+	if not secret or not timestamp or not signature:
+		return False
+
+	canonical_data = json.dumps(
+		callback_data,
+		sort_keys=True,
+		separators=(',', ':'),
+	)
+	message = f'{timestamp}.{canonical_data}'.encode()
+	expected_signature = hmac.new(
+		secret.encode(),
+		message,
+		hashlib.sha256,
+	).hexdigest()
+	return hmac.compare_digest(expected_signature, signature)
+
+
+def simulate_payment(checkout_request_id):
+	"""Simulate a sandbox payment query for a checkout request."""
+	if getattr(settings, 'MPESA_ENVIRONMENT', 'sandbox').lower() != 'sandbox':
+		raise ValueError('Payment simulation is available only in the sandbox environment')
+	if not checkout_request_id:
+		raise ValueError('checkout_request_id is required')
+
+	response = query_payment_status(checkout_request_id)
+	return response
 
 # TODO: Service class or functions for M-PESA integration
 # TODO: Implement Daraja OAuth2 flow
