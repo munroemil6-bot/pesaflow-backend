@@ -1,48 +1,57 @@
-"""
-Transactions Views
+"""Authenticated transaction API endpoints."""
 
-Owner: Nasra
-Responsibility: API endpoints for transaction operations
-
-API Endpoints to implement:
-# TODO: GET /api/transactions/
-#   - Returns: list of transactions (sent + received)
-#   - Filters: date range, status
-#   - Pagination: supported
-#   - Status: 200 OK
-
-# TODO: GET /api/transactions/<id>/
-#   - Returns: transaction details
-#   - Status: 200 OK or 404 NOT FOUND
-
-# TODO: POST /api/transactions/
-#   - Accepts: recipient_id (or recipient_phone), amount, description
-#   - Returns: created transaction
-#   - Coordinates with Wallet app (check balance)
-#   - Coordinates with Payments app (if M-PESA)
-#   - Status: 201 CREATED or 400 BAD REQUEST
-
-# TODO: GET /api/transactions/summary/
-#   - Returns: user's transaction summary
-#   - Include: total sent, total received, transaction count
-#   - Status: 200 OK
-
-# TODO: GET /api/transactions/sent/
-#   - Returns: only sent transactions
-#   - Status: 200 OK
-
-# TODO: GET /api/transactions/received/
-#   - Returns: only received transactions
-#   - Status: 200 OK
-"""
-
+from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-# TODO: @api_view(['GET', 'POST']) transaction_list view
-# TODO: @api_view(['GET']) transaction_detail view
-# TODO: @api_view(['GET']) transaction_summary view
-# TODO: @api_view(['GET']) sent_transactions view
-# TODO: @api_view(['GET']) received_transactions view
+from .serializers import TransactionListSerializer, TransactionSerializer, TransactionSummarySerializer, TransferSerializer
+from .services import create_transaction, get_transaction, get_transaction_summary, get_user_transactions
+
+
+def _filters(request, direction=None):
+    return {"status": request.query_params.get("status"), "start_date": request.query_params.get("start_date"),
+            "end_date": request.query_params.get("end_date"), "direction": direction}
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def transaction_list(request):
+    if request.method == "POST":
+        serializer = TransferSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        try:
+            transfer = create_transaction(request.user, serializer.validated_data["recipient"], serializer.validated_data["amount"], serializer.validated_data["description"])
+        except ValidationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(TransactionSerializer(transfer).data, status=status.HTTP_201_CREATED)
+    return Response(TransactionListSerializer(get_user_transactions(request.user, _filters(request)), many=True).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def transaction_detail(request, transaction_id):
+    try:
+        transfer = get_transaction(request.user, transaction_id)
+    except PermissionDenied as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+    return Response(TransactionSerializer(transfer).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def transaction_summary(request):
+    return Response(TransactionSummarySerializer(get_transaction_summary(request.user)).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sent_transactions(request):
+    return Response(TransactionListSerializer(get_user_transactions(request.user, _filters(request, "sent")), many=True).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def received_transactions(request):
+    return Response(TransactionListSerializer(get_user_transactions(request.user, _filters(request, "received")), many=True).data)

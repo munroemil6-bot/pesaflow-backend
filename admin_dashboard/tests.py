@@ -1,48 +1,34 @@
-"""
-Admin Dashboard Tests
+from decimal import Decimal
 
-Owner: Nasra
-Responsibility: Unit tests for admin endpoints
+from django.test import TestCase
+from rest_framework.test import APIClient
 
-Tests to implement:
-# TODO: TestDashboardSummary
-#   - test_get_dashboard_summary
-#   - test_summary_calculations
+from accounts.models import User
+from transactions.models import Transaction
+from wallet.models import Wallet
 
-# TODO: TestUserManagement
-#   - test_list_all_users
-#   - test_list_users_filter_active
-#   - test_get_user_details
-#   - test_user_detail_with_stats
 
-# TODO: TestTransactionMonitoring
-#   - test_get_all_transactions
-#   - test_filter_by_status
-#   - test_filter_by_date_range
-#   - test_filter_by_amount_range
+class AdminDashboardApiTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser("admin@example.com", "password", phone="0700000010", full_name="Admin")
+        self.sender = User.objects.create_user("sender@example.com", "password", phone="0700000011", full_name="Sender")
+        self.recipient = User.objects.create_user("recipient@example.com", "password", phone="0700000012", full_name="Recipient")
+        Wallet.objects.create(user=self.sender, balance=Decimal("100.00"))
+        Wallet.objects.create(user=self.recipient, balance=Decimal("50.00"))
+        Transaction.objects.create(sender=self.sender, recipient=self.recipient, amount=Decimal("10.00"), fee=Decimal("0.10"), total_amount=Decimal("10.10"), status=Transaction.Status.COMPLETED)
+        self.client = APIClient()
 
-# TODO: TestWalletAnalytics
-#   - test_get_all_wallets
-#   - test_wallet_sorting
+    def test_admin_can_read_summary_and_transactions(self):
+        self.client.force_authenticate(self.admin)
+        summary = self.client.get("/api/admin-dashboard/summary/")
+        self.assertEqual(summary.status_code, 200)
+        self.assertEqual(summary.data["total_transactions"], 1)
+        self.assertEqual(Decimal(summary.data["total_fees_collected"]), Decimal("0.10"))
+        transactions = self.client.get("/api/admin-dashboard/transactions/")
+        self.assertEqual(transactions.status_code, 200)
+        self.assertEqual(transactions.data["total_count"], 1)
 
-# TODO: TestAnalytics
-#   - test_get_daily_analytics
-#   - test_get_weekly_analytics
-#   - test_calculate_success_rate
-
-# TODO: TestReporting
-#   - test_get_revenue_report
-#   - test_revenue_by_date
-#   - test_top_users_report
-
-# TODO: TestAdminPermissions
-#   - test_non_admin_cannot_access
-#   - test_admin_can_access
-#   - test_unauthenticated_denied
-"""
-
-import pytest
-
-# TODO: Write test cases using pytest-django
-# TODO: Test admin permissions
-# TODO: Test data aggregations
+    def test_standard_user_is_denied(self):
+        self.client.force_authenticate(self.sender)
+        response = self.client.get("/api/admin-dashboard/summary/")
+        self.assertEqual(response.status_code, 403)
