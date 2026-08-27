@@ -19,8 +19,20 @@ services:
         value: "localhost,127.0.0.1"
       - key: CORS_ALLOWED_ORIGINS
         value: "https://pesaflow-frontend.vercel.app"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://pesaflow-frontend.vercel.app"
       - key: MPESA_ENVIRONMENT
         value: "sandbox"
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_SHORTCODE
+        sync: false
+      - key: MPESA_PASSKEY
+        sync: false
+      - key: MPESA_CALLBACK_URL
+        value: "https://pesaflow-backend-wdbv.onrender.com/api/payments/callback/"
       - key: ADMIN_EMAIL
         value: "admin@gmail.com"
       - key: ADMIN_PHONE
