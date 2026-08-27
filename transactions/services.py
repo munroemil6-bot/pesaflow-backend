@@ -1,48 +1,135 @@
-"""
-Transactions Services
+"""Business rules for PesaFlow user-to-user transfers."""
 
-Owner: Nasra
-Responsibility: Business logic for transaction management
+from decimal import Decimal, ROUND_HALF_UP
 
-Service functions to implement:
-# TODO: create_transaction(sender, recipient, amount, description)
-#   - Validate recipient exists
-#   - Validate sender != recipient
-#   - Check sender wallet balance (call wallet service)
-#   - Calculate fees
-#   - Create transaction record
-#   - Update sender and recipient wallets
-#   - Update transaction status to COMPLETED
-#   - Return transaction object
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction as db_transaction
+from django.db.models import Avg, Count, Q, Sum
+from django.shortcuts import get_object_or_404
 
-# TODO: get_user_transactions(user, filters)
-#   - Get both sent and received transactions
-#   - Apply filters: date range, status
-#   - Sort by created_at descending
-#   - Return list of transactions
+from wallet.models import Wallet, WalletTransaction
+from wallet.services import get_or_create_wallet
 
-# TODO: get_transaction(user, transaction_id)
-#   - Get specific transaction
-#   - Verify user is sender or recipient
-#   - Return transaction
+from .models import Transaction
 
-# TODO: get_transaction_summary(user)
-#   - Calculate total sent
-#   - Calculate total received
-#   - Count transactions
-#   - Get average transaction
-#   - Return summary dict
+FEE_RATE = Decimal("0.01")
+MONEY_PLACES = Decimal("0.01")
 
-# TODO: calculate_transaction_fee(amount)
-#   - Calculate fee based on amount
-#   - Return fee value
 
-# TODO: refund_transaction(transaction)
-#   - Refund money to sender if failed
-#   - Update transaction status
-#   - Return transaction
-"""
+def calculate_transaction_fee(amount):
+    """Return the 1% transfer fee, rounded to the smallest currency unit."""
+    amount = Decimal(amount)
+    if amount <= 0:
+        raise ValidationError("Amount must be greater than zero.")
+    return (amount * FEE_RATE).quantize(MONEY_PLACES, rounding=ROUND_HALF_UP)
 
-# TODO: Create transaction service functions
-# TODO: Handle business logic and validation
-# TODO: Coordinate with wallet and payments services
+
+@db_transaction.atomic
+def create_transaction(sender, recipient, amount, description=""):
+    """Transfer money atomically, including the fee, and create ledger entries."""
+    amount = Decimal(amount).quantize(MONEY_PLACES, rounding=ROUND_HALF_UP)
+    if amount <= 0:
+        raise ValidationError("Amount must be greater than zero.")
+    if sender.pk == recipient.pk:
+        raise ValidationError("You cannot transfer money to yourself.")
+    if not recipient.is_active:
+        raise ValidationError("The recipient account is inactive.")
+
+    sender_wallet = get_or_create_wallet(sender)
+    recipient_wallet = get_or_create_wallet(recipient)
+    locked_wallets = {
+        wallet.user_id: wallet
+        for wallet in Wallet.objects.select_for_update().filter(pk__in=[sender_wallet.pk, recipient_wallet.pk])
+    }
+    sender_wallet = locked_wallets[sender.pk]
+    recipient_wallet = locked_wallets[recipient.pk]
+    fee = calculate_transaction_fee(amount)
+    total_amount = amount + fee
+    if sender_wallet.balance < total_amount:
+        raise ValidationError("Insufficient wallet balance for this transfer and its fee.")
+
+    transfer = Transaction.objects.create(
+        sender=sender, recipient=recipient, amount=amount, fee=fee,
+        total_amount=total_amount, description=description,
+    )
+    sender_before, recipient_before = sender_wallet.balance, recipient_wallet.balance
+    sender_wallet.balance -= total_amount
+    recipient_wallet.balance += amount
+    sender_wallet.save(update_fields=["balance", "updated_at"])
+    recipient_wallet.save(update_fields=["balance", "updated_at"])
+    WalletTransaction.objects.bulk_create([
+        WalletTransaction(wallet=sender_wallet, amount=total_amount, transaction_type=WalletTransaction.DEBIT,
+                          description=f"Transfer {transfer.reference}", balance_before=sender_before,
+                          balance_after=sender_wallet.balance),
+        WalletTransaction(wallet=recipient_wallet, amount=amount, transaction_type=WalletTransaction.CREDIT,
+                          description=f"Transfer {transfer.reference}", balance_before=recipient_before,
+                          balance_after=recipient_wallet.balance),
+    ])
+    transfer.status = Transaction.Status.COMPLETED
+    transfer.save(update_fields=["status", "updated_at"])
+    return transfer
+
+
+def get_user_transactions(user, filters=None):
+    """Return a user's transfers, optionally narrowed by date, status, or direction."""
+    filters = filters or {}
+    queryset = Transaction.objects.filter(Q(sender=user) | Q(recipient=user)).select_related("sender", "recipient")
+    if filters.get("direction") == "sent":
+        queryset = queryset.filter(sender=user)
+    elif filters.get("direction") == "received":
+        queryset = queryset.filter(recipient=user)
+    if filters.get("status"):
+        queryset = queryset.filter(status=filters["status"])
+    if filters.get("start_date"):
+        queryset = queryset.filter(created_at__date__gte=filters["start_date"])
+    if filters.get("end_date"):
+        queryset = queryset.filter(created_at__date__lte=filters["end_date"])
+    return queryset.order_by("-created_at")
+
+
+def get_transaction(user, transaction_id):
+    """Return a transfer only when the user sent or received it."""
+    transfer = get_object_or_404(Transaction.objects.select_related("sender", "recipient"), pk=transaction_id)
+    if transfer.sender_id != user.pk and transfer.recipient_id != user.pk:
+        raise PermissionDenied("You do not have permission to view this transaction.")
+    return transfer
+
+
+def get_transaction_summary(user):
+    """Return completed sent/received totals and overall transaction statistics."""
+    queryset = get_user_transactions(user)
+    aggregates = queryset.aggregate(
+        total_sent=Sum("amount", filter=Q(sender=user, status=Transaction.Status.COMPLETED)),
+        total_received=Sum("amount", filter=Q(recipient=user, status=Transaction.Status.COMPLETED)),
+        transaction_count=Count("id"),
+        average_transaction=Avg("amount", filter=Q(status=Transaction.Status.COMPLETED)),
+    )
+    return {
+        key: value if value is not None else (0 if key == "transaction_count" else Decimal("0.00"))
+        for key, value in aggregates.items()
+    }
+
+
+@db_transaction.atomic
+def refund_transaction(transfer):
+    """Reverse a failed transfer once, returning the amount and fee to its sender."""
+    if transfer.status != Transaction.Status.FAILED:
+        raise ValidationError("Only failed transactions can be refunded.")
+    sender_wallet = Wallet.objects.select_for_update().get(user=transfer.sender)
+    recipient_wallet = Wallet.objects.select_for_update().get(user=transfer.recipient)
+    if recipient_wallet.balance < transfer.amount:
+        raise ValidationError("The recipient wallet cannot cover this refund.")
+    sender_before, recipient_before = sender_wallet.balance, recipient_wallet.balance
+    sender_wallet.balance += transfer.total_amount
+    recipient_wallet.balance -= transfer.amount
+    sender_wallet.save(update_fields=["balance", "updated_at"])
+    recipient_wallet.save(update_fields=["balance", "updated_at"])
+    WalletTransaction.objects.bulk_create([
+        WalletTransaction(wallet=sender_wallet, amount=transfer.total_amount, transaction_type=WalletTransaction.CREDIT,
+                          description=f"Refund {transfer.reference}", balance_before=sender_before, balance_after=sender_wallet.balance),
+        WalletTransaction(wallet=recipient_wallet, amount=transfer.amount, transaction_type=WalletTransaction.DEBIT,
+                          description=f"Refund {transfer.reference}", balance_before=recipient_before, balance_after=recipient_wallet.balance),
+    ])
+    transfer.status = Transaction.Status.REFUNDED
+    transfer.save(update_fields=["status", "updated_at"])
+    return transfer
