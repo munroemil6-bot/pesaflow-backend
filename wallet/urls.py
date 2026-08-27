@@ -14,7 +14,7 @@ URL patterns to implement:
 
 from django.urls import path
 
-from admin_dashboard import views
+from . import views
 
 app_name = 'wallet'
 
