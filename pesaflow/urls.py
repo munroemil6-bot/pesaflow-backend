@@ -23,7 +23,18 @@ from django.http import JsonResponse
 
 def api_root(request):
     """Return a small public readiness response for local setup checks."""
-    return JsonResponse({"status": "ok", "service": "pesaflow-backend"})
+    return JsonResponse({
+        "status": "ok",
+        "service": "pesaflow-backend",
+        "api_types": [
+            "accounts",
+            "wallet",
+            "beneficiaries",
+            "transactions",
+            "payments",
+            "admin-dashboard",
+        ],
+    })
 
 
 def home(request):
