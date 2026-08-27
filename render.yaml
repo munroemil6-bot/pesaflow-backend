@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input
-    startCommand: python manage.py migrate && gunicorn pesaflow.wsgi:application
+    startCommand: python manage.py migrate && python manage.py ensure_admin && gunicorn pesaflow.wsgi:application
     healthCheckPath: /api/
     envVars:
       - key: DATABASE_URL
@@ -21,6 +21,14 @@ services:
         value: "https://pesaflow-frontend.vercel.app"
       - key: MPESA_ENVIRONMENT
         value: "sandbox"
+      - key: ADMIN_EMAIL
+        value: "admin@gmail.com"
+      - key: ADMIN_PHONE
+        value: "0723274962"
+      - key: ADMIN_FULL_NAME
+        value: "Myles Munroe"
+      - key: ADMIN_PASSWORD
+        sync: false
 
 databases:
   - name: pesaflow-db
