@@ -37,72 +37,65 @@ import os
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pesaflow.settings')
 
-import pytest
+from django.test import SimpleTestCase
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
 
-@pytest.fixture
-def api_client():
-	return APIClient()
+class TestStkPush(SimpleTestCase):
+	def setUp(self):
+		self.api_client = APIClient()
 
+		class AuthenticatedUser:
+			is_authenticated = True
 
-@pytest.fixture
-def user():
-	class AuthenticatedUser:
-		is_authenticated = True
+		self.user = AuthenticatedUser()
 
-	return AuthenticatedUser()
+	def test_stk_push_success(self):
+		self.api_client.force_authenticate(user=self.user)
+		daraja_response = {
+			'merchant_request_id': 'merchant-123',
+			'checkout_request_id': 'checkout-123',
+			'response_code': '0',
+		}
 
+		with patch('payments.views.initiate_stk_push', return_value=daraja_response):
+			response = self.api_client.post(
+				'/api/payments/stk-push/',
+				{'phone_number': '0712345678', 'amount': '1000.00'},
+				format='json',
+			)
 
-def test_stk_push_success(api_client, user):
-	api_client.force_authenticate(user=user)
-	daraja_response = {
-		'merchant_request_id': 'merchant-123',
-		'checkout_request_id': 'checkout-123',
-		'response_code': '0',
-	}
+		self.assertEqual(response.status_code, 202)
+		self.assertEqual(response.json(), daraja_response)
 
-	with patch('payments.views.initiate_stk_push', return_value=daraja_response):
-		response = api_client.post(
+	def test_stk_push_invalid_phone(self):
+		self.api_client.force_authenticate(user=self.user)
+		response = self.api_client.post(
+			'/api/payments/stk-push/',
+			{'phone_number': '123', 'amount': '1000.00'},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('phone_number', response.json())
+
+	def test_stk_push_invalid_amount(self):
+		self.api_client.force_authenticate(user=self.user)
+		response = self.api_client.post(
+			'/api/payments/stk-push/',
+			{'phone_number': '0712345678', 'amount': '0'},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('amount', response.json())
+
+	def test_stk_push_authenticated_required(self):
+		response = self.api_client.post(
 			'/api/payments/stk-push/',
 			{'phone_number': '0712345678', 'amount': '1000.00'},
 			format='json',
 		)
 
-	assert response.status_code == 202
-	assert response.json() == daraja_response
-
-
-def test_stk_push_invalid_phone(api_client, user):
-	api_client.force_authenticate(user=user)
-	response = api_client.post(
-		'/api/payments/stk-push/',
-		{'phone_number': '123', 'amount': '1000.00'},
-		format='json',
-	)
-
-	assert response.status_code == 400
-	assert 'phone_number' in response.json()
-
-
-def test_stk_push_invalid_amount(api_client, user):
-	api_client.force_authenticate(user=user)
-	response = api_client.post(
-		'/api/payments/stk-push/',
-		{'phone_number': '0712345678', 'amount': '0'},
-		format='json',
-	)
-
-	assert response.status_code == 400
-	assert 'amount' in response.json()
-
-
-def test_stk_push_authenticated_required(api_client):
-	response = api_client.post(
-		'/api/payments/stk-push/',
-		{'phone_number': '0712345678', 'amount': '1000.00'},
-		format='json',
-	)
-
-	assert response.status_code == 401
+		self.assertEqual(response.status_code, 401)
