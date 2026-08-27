@@ -16,6 +16,7 @@ ROUTING STRUCTURE:
 """
 
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import include, path
 from django.http import JsonResponse
 
@@ -24,7 +25,13 @@ def api_root(request):
     """Return a small public readiness response for local setup checks."""
     return JsonResponse({"status": "ok", "service": "pesaflow-backend"})
 
+
+def home(request):
+    """Send local developers to the Django Admin sign-in page."""
+    return redirect("admin:index")
+
 urlpatterns = [
+    path("", home, name="home"),
     path("admin/", admin.site.urls),
     path("api/", api_root, name="api-root"),
 

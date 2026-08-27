@@ -20,6 +20,7 @@ from . import views
 app_name = 'accounts'
 
 urlpatterns = [
+    path("", views.api_index, name="api-index"),
     path("register/", views.register, name="register"),
     path("login/", views.login, name="login"),
     path("refresh/", views.RefreshTokenView.as_view(), name="refresh"),
