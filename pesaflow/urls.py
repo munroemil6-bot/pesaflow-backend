@@ -17,9 +17,16 @@ ROUTING STRUCTURE:
 
 from django.contrib import admin
 from django.urls import include, path
+from django.http import JsonResponse
+
+
+def api_root(request):
+    """Return a small public readiness response for local setup checks."""
+    return JsonResponse({"status": "ok", "service": "pesaflow-backend"})
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/", api_root, name="api-root"),
 
     # Mason: User Authentication & Accounts
     path("api/accounts/", include("accounts.urls")),
