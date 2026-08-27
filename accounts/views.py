@@ -72,6 +72,25 @@ def register(request):
     return Response({"user": UserSerializer(user).data}, status=status.HTTP_201_CREATED)
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def api_index(request):
+    """List the public account API entry points for local developers."""
+    return Response(
+        {
+            "service": "pesaflow-accounts",
+            "endpoints": {
+                "register": "POST /api/accounts/register/",
+                "login": "POST /api/accounts/login/",
+                "refresh": "POST /api/accounts/refresh/",
+                "profile": "GET or PUT /api/accounts/profile/",
+                "logout": "POST /api/accounts/logout/",
+                "change_password": "POST /api/accounts/change-password/",
+            },
+        }
+    )
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login(request):
