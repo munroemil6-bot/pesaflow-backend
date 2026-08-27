@@ -30,8 +30,8 @@ class WalletAdmin(admin.ModelAdmin):
 
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(admin.ModelAdmin):
-    list_display = ('wallet', 'amount', 'type', 'created_at')
-    list_filter = ('type', 'created_at')
+    list_display = ('wallet', 'amount', 'transaction_type', 'created_at')
+    list_filter = ('transaction_type', 'created_at')
     search_fields = ('wallet__user__email',)
 
 # TODO: Register Wallet model with WalletAdmin
