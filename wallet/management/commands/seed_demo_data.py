@@ -30,7 +30,7 @@ class Command(BaseCommand):
             self._create_transfers(users)
 
         self.stdout.write(self.style.SUCCESS("Created or updated 7 PesaFlow demo users and related data."))
-        self.stdout.write("Demo email accounts use an unusable password until one is set explicitly.")
+        self.stdout.write("Demo passwords follow the development-only pattern: {firstname}1234.")
 
     def _create_users(self):
         users = []
@@ -46,8 +46,9 @@ class Command(BaseCommand):
             if user.phone != phone:
                 user.phone = phone
                 changed = True
-            if created:
-                user.set_unusable_password()
+            password = f"{full_name.split()[0].lower()}1234"
+            if created or not user.check_password(password):
+                user.set_password(password)
                 changed = True
             if changed:
                 user.save()
