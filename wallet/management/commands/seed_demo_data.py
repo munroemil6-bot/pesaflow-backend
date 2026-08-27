@@ -5,6 +5,7 @@ from django.db import transaction
 
 from accounts.models import User
 from beneficiaries.models import Beneficiary
+from admin_dashboard.models import DashboardLog, DashboardSnapshot
 from transactions.models import Transaction
 from wallet.models import Wallet, WalletTransaction
 
@@ -28,6 +29,7 @@ class Command(BaseCommand):
             self._create_wallets(users)
             self._create_beneficiaries(users)
             self._create_transfers(users)
+            self._create_dashboard_data(users[0])
 
         self.stdout.write(self.style.SUCCESS("Created or updated 7 PesaFlow demo users and related data."))
         self.stdout.write("Demo passwords follow the development-only pattern: {firstname}1234.")
@@ -102,3 +104,22 @@ class Command(BaseCommand):
                     "description": f"Demo: {description}",
                 },
             )
+
+    def _create_dashboard_data(self, admin):
+        DashboardSnapshot.objects.update_or_create(
+            key="demo-dashboard",
+            defaults={
+                "data": {
+                    "total_users": len(self.demo_users),
+                    "total_transactions": 7,
+                    "status": "demo",
+                },
+            },
+        )
+        DashboardLog.objects.update_or_create(
+            action="demo-data-seeded",
+            defaults={
+                "admin": admin,
+                "details": {"users": len(self.demo_users), "transfers": 7},
+            },
+        )
