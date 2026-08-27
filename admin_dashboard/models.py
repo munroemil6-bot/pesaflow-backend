@@ -1,31 +1,30 @@
-"""
-Admin Dashboard Models
+"""Optional persisted dashboard snapshots and administrator audit events."""
 
-Owner: Nasra
-Responsibility: Optional models for dashboard-specific data
-
-Models to implement (optional):
-# TODO: Dashboard model (optional - for caching analytics)
-#   - total_users
-#   - total_transactions
-#   - total_volume
-#   - total_fees_collected
-#   - active_users_today
-#   - generated_at
-
-# TODO: DashboardLog model (optional - for audit trail)
-#   - admin (ForeignKey to User)
-#   - action (CharField)
-#   - target (CharField)
-#   - details (JSONField)
-#   - created_at
-
-Note: Most data will be aggregated from existing models (accounts.User, 
-transactions.Transaction, wallet.Wallet, payments.MpesaTransaction)
-"""
-
+from django.conf import settings
 from django.db import models
 
-# TODO: Create optional Dashboard caching model
-# TODO: Create optional DashboardLog audit model
-# TODO: Most queries will aggregate from existing models
+
+class DashboardSnapshot(models.Model):
+    key = models.CharField(max_length=100, unique=True)
+    data = models.JSONField()
+    generated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-generated_at",)
+
+    def __str__(self):
+        return self.key
+
+
+class DashboardLog(models.Model):
+    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="dashboard_logs")
+    action = models.CharField(max_length=100)
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=("action", "created_at"))]
+
+    def __str__(self):
+        return f"{self.action} at {self.created_at:%Y-%m-%d %H:%M}"
