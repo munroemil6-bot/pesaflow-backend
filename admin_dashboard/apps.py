@@ -1,17 +1,4 @@
-"""
-Admin Dashboard App Configuration
 
-Owner: Nasra
-Responsibility: Admin panel API endpoints and analytics
-
-This app handles:
-- Admin-only data retrieval
-- User management
-- Transaction monitoring
-- Wallet analytics
-- System statistics
-- Profit calculations
-"""
 
 from django.apps import AppConfig
 
