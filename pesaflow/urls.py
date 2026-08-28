@@ -1,19 +1,3 @@
-"""
-URL configuration for the PesaFlow project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-
-Each app has its own urls.py file that handles its specific routes.
-
-ROUTING STRUCTURE:
-    - api/accounts/      → Mason (User Authentication)
-    - api/wallet/        → Naomi (Wallet Management)
-    - api/transactions/  → Nasra (Money Transfers)
-    - api/payments/      → Myles (M-PESA Integration)
-    - api/beneficiaries/ → Naomi (Saved Recipients)
-    - api/admin-dashboard/ → Nasra (Admin Operations)
-"""
 
 from django.contrib import admin
 from django.shortcuts import redirect
