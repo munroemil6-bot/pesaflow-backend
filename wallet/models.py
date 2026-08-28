@@ -1,31 +1,3 @@
-"""
-Wallet Models
-
-Owner: Naomi
-Responsibility: Wallet model and related database tables
-
-Models to implement:
-# TODO: Wallet model
-#   - user (OneToOneField to User, cascade delete)
-#   - balance (DecimalField, precision 12.2)
-#   - currency (CharField default='KES')
-#   - created_at (DateTimeField auto_now_add)
-#   - updated_at (DateTimeField auto_now)
-#   - Methods: get_balance(), add_funds(), deduct_funds(), to_dict()
-
-# TODO: WalletTransaction model (optional, for detailed history)
-#   - wallet (ForeignKey)
-#   - amount
-#   - transaction_type (credit, debit)
-#   - description
-#   - balance_before
-#   - balance_after
-#   - created_at
-"""
-
-
-
-
 from decimal import Decimal
 from django.conf import settings
 from django.db import models
@@ -104,9 +76,17 @@ class Wallet(models.Model):
 class WalletTransaction(models.Model):
     CREDIT = 'credit'
     DEBIT = 'debit'
+    PENDING = 'pending'
+    SUCCESS = 'success'
+    FAILED = 'failed'
     TRANSACTION_TYPE_CHOICES = [
         (CREDIT, 'Credit'),
         (DEBIT, 'Debit'),
+    ]
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (SUCCESS, 'Success'),
+        (FAILED, 'Failed'),
     ]
 
     wallet = models.ForeignKey(
@@ -116,6 +96,7 @@ class WalletTransaction(models.Model):
     )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
     description = models.CharField(max_length=255, blank=True)
     balance_before = models.DecimalField(max_digits=12, decimal_places=2)
     balance_after = models.DecimalField(max_digits=12, decimal_places=2)
