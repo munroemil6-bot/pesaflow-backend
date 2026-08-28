@@ -1,16 +1,4 @@
-"""
-Accounts App Configuration
 
-Owner: Mason
-Responsibility: User authentication and account management
-
-This app handles:
-- User registration
-- User login
-- JWT token generation and refresh
-- User profile management
-- Authentication middleware
-"""
 
 from django.apps import AppConfig
 

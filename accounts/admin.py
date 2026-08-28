@@ -1,7 +1,3 @@
-"""Django admin configuration for PesaFlow accounts.
-
-Owner: Mason
-"""
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin

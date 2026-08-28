@@ -1,16 +1,3 @@
-"""
-Accounts Serializers
-
-Owner: Mason
-Responsibility: Input validation and output serialization
-
-Serializers to implement:
-# TODO: UserSerializer - User profile representation
-# TODO: RegisterSerializer - Validate registration data
-# TODO: LoginSerializer - Validate login credentials
-# TODO: ProfileSerializer - Validate profile updates
-# TODO: ChangePasswordSerializer - Validate password changes
-"""
 
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
