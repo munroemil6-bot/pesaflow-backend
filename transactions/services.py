@@ -2,6 +2,7 @@
 
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction as db_transaction
 from django.db.models import Avg, Count, Q, Sum
@@ -11,6 +12,8 @@ from wallet.models import Wallet, WalletTransaction
 from wallet.services import get_or_create_wallet
 
 from .models import Transaction
+
+User = get_user_model()
 
 FEE_RATE = Decimal("0.01")
 MONEY_PLACES = Decimal("0.01")
@@ -26,7 +29,7 @@ def calculate_transaction_fee(amount):
 
 @db_transaction.atomic
 def create_transaction(sender, recipient, amount, description=""):
-    """Transfer money atomically, including the fee, and create ledger entries."""
+    """Transfer money atomically, including the fee, and create ledger entries. Fee goes to admin (Myles)."""
     amount = Decimal(amount).quantize(MONEY_PLACES, rounding=ROUND_HALF_UP)
     if amount <= 0:
         raise ValidationError("Amount must be greater than zero.")
@@ -37,12 +40,29 @@ def create_transaction(sender, recipient, amount, description=""):
 
     sender_wallet = get_or_create_wallet(sender)
     recipient_wallet = get_or_create_wallet(recipient)
+    
+    # Get admin wallet (Myles)
+    try:
+        admin_user = User.objects.get(phone="0723274962")
+        admin_wallet = get_or_create_wallet(admin_user)
+    except User.DoesNotExist:
+        admin_user = None
+        admin_wallet = None
+    
+    # Lock wallets for atomic update
+    wallet_pks = [sender_wallet.pk, recipient_wallet.pk]
+    if admin_wallet:
+        wallet_pks.append(admin_wallet.pk)
+    
     locked_wallets = {
         wallet.user_id: wallet
-        for wallet in Wallet.objects.select_for_update().filter(pk__in=[sender_wallet.pk, recipient_wallet.pk])
+        for wallet in Wallet.objects.select_for_update().filter(pk__in=wallet_pks)
     }
     sender_wallet = locked_wallets[sender.pk]
     recipient_wallet = locked_wallets[recipient.pk]
+    if admin_wallet:
+        admin_wallet = locked_wallets.get(admin_user.pk)
+    
     fee = calculate_transaction_fee(amount)
     total_amount = amount + fee
     if sender_wallet.balance < total_amount:
@@ -53,18 +73,37 @@ def create_transaction(sender, recipient, amount, description=""):
         total_amount=total_amount, description=description,
     )
     sender_before, recipient_before = sender_wallet.balance, recipient_wallet.balance
+    admin_before = admin_wallet.balance if admin_wallet else None
+    
     sender_wallet.balance -= total_amount
     recipient_wallet.balance += amount
+    if admin_wallet:
+        admin_wallet.balance += fee
+    
     sender_wallet.save(update_fields=["balance", "updated_at"])
     recipient_wallet.save(update_fields=["balance", "updated_at"])
-    WalletTransaction.objects.bulk_create([
+    if admin_wallet:
+        admin_wallet.save(update_fields=["balance", "updated_at"])
+    
+    # Create ledger entries
+    ledger_entries = [
         WalletTransaction(wallet=sender_wallet, amount=total_amount, transaction_type=WalletTransaction.DEBIT,
                           description=f"Transfer {transfer.reference}", balance_before=sender_before,
                           balance_after=sender_wallet.balance),
         WalletTransaction(wallet=recipient_wallet, amount=amount, transaction_type=WalletTransaction.CREDIT,
                           description=f"Transfer {transfer.reference}", balance_before=recipient_before,
                           balance_after=recipient_wallet.balance),
-    ])
+    ]
+    
+    # Add admin fee ledger entry if admin wallet exists
+    if admin_wallet:
+        ledger_entries.append(
+            WalletTransaction(wallet=admin_wallet, amount=fee, transaction_type=WalletTransaction.CREDIT,
+                              description=f"Transfer fee {transfer.reference}", balance_before=admin_before,
+                              balance_after=admin_wallet.balance)
+        )
+    
+    WalletTransaction.objects.bulk_create(ledger_entries)
     transfer.status = Transaction.Status.COMPLETED
     transfer.save(update_fields=["status", "updated_at"])
     return transfer
@@ -115,21 +154,53 @@ def refund_transaction(transfer):
     """Reverse a failed transfer once, returning the amount and fee to its sender."""
     if transfer.status != Transaction.Status.FAILED:
         raise ValidationError("Only failed transactions can be refunded.")
+    
+    # Get admin wallet (Myles)
+    try:
+        admin_user = User.objects.get(phone="0723274962")
+        admin_wallet = Wallet.objects.select_for_update().get(user=admin_user)
+    except User.DoesNotExist:
+        admin_user = None
+        admin_wallet = None
+    
     sender_wallet = Wallet.objects.select_for_update().get(user=transfer.sender)
     recipient_wallet = Wallet.objects.select_for_update().get(user=transfer.recipient)
+    
     if recipient_wallet.balance < transfer.amount:
         raise ValidationError("The recipient wallet cannot cover this refund.")
+    if admin_wallet and admin_wallet.balance < transfer.fee:
+        raise ValidationError("The admin wallet cannot cover the fee refund.")
+    
     sender_before, recipient_before = sender_wallet.balance, recipient_wallet.balance
+    admin_before = admin_wallet.balance if admin_wallet else None
+    
     sender_wallet.balance += transfer.total_amount
     recipient_wallet.balance -= transfer.amount
+    if admin_wallet:
+        admin_wallet.balance -= transfer.fee
+    
     sender_wallet.save(update_fields=["balance", "updated_at"])
     recipient_wallet.save(update_fields=["balance", "updated_at"])
-    WalletTransaction.objects.bulk_create([
+    if admin_wallet:
+        admin_wallet.save(update_fields=["balance", "updated_at"])
+    
+    # Create ledger entries
+    ledger_entries = [
         WalletTransaction(wallet=sender_wallet, amount=transfer.total_amount, transaction_type=WalletTransaction.CREDIT,
                           description=f"Refund {transfer.reference}", balance_before=sender_before, balance_after=sender_wallet.balance),
         WalletTransaction(wallet=recipient_wallet, amount=transfer.amount, transaction_type=WalletTransaction.DEBIT,
                           description=f"Refund {transfer.reference}", balance_before=recipient_before, balance_after=recipient_wallet.balance),
-    ])
+    ]
+    
+    # Add admin fee refund ledger entry if admin wallet exists
+    if admin_wallet:
+        ledger_entries.append(
+            WalletTransaction(wallet=admin_wallet, amount=transfer.fee, transaction_type=WalletTransaction.DEBIT,
+                              description=f"Refund fee {transfer.reference}", balance_before=admin_before,
+                              balance_after=admin_wallet.balance)
+        )
+    
+    WalletTransaction.objects.bulk_create(ledger_entries)
     transfer.status = Transaction.Status.REFUNDED
     transfer.save(update_fields=["status", "updated_at"])
     return transfer
