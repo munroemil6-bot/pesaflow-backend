@@ -25,7 +25,7 @@ class TransactionSerializer(TransactionListSerializer):
 class TransferSerializer(serializers.Serializer):
     recipient_id = serializers.IntegerField(required=False)
     recipient_phone = serializers.CharField(max_length=20, required=False)
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("10.00"))
     description = serializers.CharField(required=False, allow_blank=True, max_length=500, default="")
 
     def validate(self, attrs):

@@ -53,9 +53,9 @@ def get_wallet_analytics(wallet):
 
 @transaction.atomic
 def add_funds(wallet, amount, description=''):
-    
-    if amount <= 0:
-        raise ValidationError("Amount must be greater than zero.")
+    amount = Decimal(amount)
+    if amount < Decimal('10.00'):
+        raise ValidationError("Amount must be at least KSh 10.00.")
 
     wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
 
@@ -92,8 +92,9 @@ def deduct_funds(wallet, amount, reason=''):
     Validate sufficient balance, create wallet transaction,
     update wallet balance. Returns wallet object.
     """
-    if amount <= 0:
-        raise ValidationError("Amount must be greater than zero.")
+    amount = Decimal(amount)
+    if amount < Decimal('10.00'):
+        raise ValidationError("Amount must be at least KSh 10.00.")
 
     wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
 
@@ -124,10 +125,14 @@ def add_funds_from_payment(wallet, amount, wallet_transaction=None):
     Update wallet balance, update wallet transaction status to SUCCESS.
     Returns wallet object.
     """
+    amount = Decimal(amount)
+    if amount < Decimal('10.00'):
+        raise ValidationError("Amount must be at least KSh 10.00.")
+
     wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
 
     balance_before = wallet.balance
-    wallet.balance += Decimal(amount)
+    wallet.balance += amount
     wallet.save(update_fields=['balance', 'updated_at'])
 
     if wallet_transaction is not None:

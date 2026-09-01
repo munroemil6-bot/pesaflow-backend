@@ -68,12 +68,12 @@ class WalletAnalyticsSerializer(serializers.Serializer):
 class AddFundsSerializer(serializers.Serializer):
     """Input for adding money (also reusable for deducting money)."""
 
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0.01'))
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('10.00'))
     description = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
 
     def validate_amount(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Amount must be greater than zero.")
+        if value < Decimal('10.00'):
+            raise serializers.ValidationError("Amount must be at least KSh 10.00.")
         return value
 
 # TODO: WalletSerializer implementation

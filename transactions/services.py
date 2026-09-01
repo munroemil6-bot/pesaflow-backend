@@ -22,8 +22,8 @@ MONEY_PLACES = Decimal("0.01")
 def calculate_transaction_fee(amount):
     """Return the 1% transfer fee, rounded to the smallest currency unit."""
     amount = Decimal(amount)
-    if amount <= 0:
-        raise ValidationError("Amount must be greater than zero.")
+    if amount < Decimal("10.00"):
+        raise ValidationError("Amount must be at least KSh 10.00.")
     return (amount * FEE_RATE).quantize(MONEY_PLACES, rounding=ROUND_HALF_UP)
 
 
@@ -31,8 +31,8 @@ def calculate_transaction_fee(amount):
 def create_transaction(sender, recipient, amount, description=""):
     """Transfer money atomically, including the fee, and create ledger entries. Fee goes to admin (Myles)."""
     amount = Decimal(amount).quantize(MONEY_PLACES, rounding=ROUND_HALF_UP)
-    if amount <= 0:
-        raise ValidationError("Amount must be greater than zero.")
+    if amount < Decimal("10.00"):
+        raise ValidationError("Amount must be at least KSh 10.00.")
     if sender.pk == recipient.pk:
         raise ValidationError("You cannot transfer money to yourself.")
     if not recipient.is_active:
