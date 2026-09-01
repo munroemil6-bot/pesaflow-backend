@@ -60,6 +60,16 @@ def api_index(request):
 def login(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+
+    lookup = {"email__iexact": serializer.validated_data.get("email")} if serializer.validated_data.get("email") else {"phone": serializer.validated_data.get("phone")}
+    user = UserSerializer.Meta.model.objects.filter(**lookup).first()
+
+    if user and not user.is_active:
+        return Response(
+            {"detail": "Your account has been deactivated. Please contact the admin on 0723274962."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     user = authenticate_user(**serializer.validated_data)
     if not user:
         return Response(

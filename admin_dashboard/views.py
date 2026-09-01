@@ -32,13 +32,25 @@ def user_list(request):
     return _paginated_response(services.get_user_list(filters, request.query_params.get("search"), _pagination(request)), AdminUserSerializer)
 
 
-@api_view(["GET"])
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAdminUser])
 def user_detail(request, user_id):
     try:
         result = services.get_user_detail(user_id)
     except services.User.DoesNotExist:
         raise Http404
+
+    if request.method == "PATCH":
+        is_active = request.data.get("is_active")
+        if is_active is None:
+            return Response({"detail": "is_active is required."}, status=400)
+
+        user = result["user"]
+        user.is_active = bool(is_active)
+        user.save(update_fields=["is_active", "updated_at"])
+        return Response({"user": AdminUserSerializer(user).data, "wallet": AdminWalletSerializer(result["wallet"]).data if result["wallet"] else None,
+                         "transaction_count": result["transaction_count"], "total_sent": result["total_sent"], "total_received": result["total_received"]})
+
     return Response({"user": AdminUserSerializer(result["user"]).data, "wallet": AdminWalletSerializer(result["wallet"]).data if result["wallet"] else None,
                      "transaction_count": result["transaction_count"], "total_sent": result["total_sent"], "total_received": result["total_received"]})
 
