@@ -1,11 +1,15 @@
 
 import os
+from decimal import Decimal
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pesaflow.settings')
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIClient
 from unittest.mock import patch
+
+from accounts.models import User
+from wallet.models import Wallet
 
 
 class TestStkPush(SimpleTestCase):
@@ -65,3 +69,41 @@ class TestStkPush(SimpleTestCase):
 		)
 
 		self.assertEqual(response.status_code, 401)
+
+
+class TestMpesaCallback(TestCase):
+	def setUp(self):
+		self.api_client = APIClient()
+
+	def test_successful_callback_credits_wallet(self):
+		user = User.objects.create_user(
+			email='buyer@example.com',
+			phone='254712345678',
+			password='StrongPass1!',
+			full_name='Buyer User',
+		)
+
+		payload = {
+			'Body': {
+				'stkCallback': {
+					'ResultCode': 0,
+					'ResultDesc': 'The service request is processed successfully.',
+					'CheckoutRequestID': 'ws_CO_123',
+					'MerchantRequestID': '123',
+					'CallbackMetadata': {
+						'Item': [
+							{'Name': 'Amount', 'Value': 1000.00},
+							{'Name': 'MpesaReceiptNumber', 'Value': 'ABC123'},
+							{'Name': 'PhoneNumber', 'Value': '254712345678'},
+							{'Name': 'TransactionDate', 'Value': '20240601120000'},
+						]
+					}
+				}
+			}
+		}
+
+		response = self.api_client.post('/api/payments/callback/', payload, format='json')
+
+		self.assertEqual(response.status_code, 200)
+		wallet = Wallet.objects.get(user=user)
+		self.assertEqual(wallet.balance, Decimal('1000.00'))

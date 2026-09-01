@@ -118,15 +118,47 @@ def initiate_stk_push(phone_number, amount):
 
 def handle_mpesa_callback(data):
 	"""Extract the payment result from a Daraja callback payload."""
-	callback = data.get('Body', {}).get('stkCallback', {})
+	payload = data
+	if hasattr(payload, 'dict'):
+		payload = payload.dict()
+	if isinstance(payload, str):
+		try:
+			payload = json.loads(payload)
+		except json.JSONDecodeError:
+			payload = {}
+	if not isinstance(payload, dict):
+		payload = {}
+
+	body = payload.get('Body') or payload.get('body') or {}
+	if isinstance(body, str):
+		try:
+			body = json.loads(body)
+		except json.JSONDecodeError:
+			body = {}
+	if not isinstance(body, dict):
+		body = {}
+
+	callback = body.get('stkCallback') or body.get('STKCallback') or body.get('callback') or {}
+	if isinstance(callback, str):
+		try:
+			callback = json.loads(callback)
+		except json.JSONDecodeError:
+			callback = {}
+	if not isinstance(callback, dict):
+		callback = {}
+
+	metadata_items = callback.get('CallbackMetadata', {}).get('Item', [])
+	if isinstance(metadata_items, dict):
+		metadata_items = [metadata_items]
 	metadata = {
 		item.get('Name'): item.get('Value')
-		for item in callback.get('CallbackMetadata', {}).get('Item', [])
-		if item.get('Name')
+		for item in metadata_items
+		if isinstance(item, dict) and item.get('Name')
 	}
 	result_code = callback.get('ResultCode')
+	result_code_text = str(result_code).strip() if result_code is not None else ''
 	return {
-		'success': result_code == 0,
+		'success': result_code_text in {'0', '00'},
 		'checkout_request_id': callback.get('CheckoutRequestID'),
 		'merchant_request_id': callback.get('MerchantRequestID'),
 		'result_code': result_code,
