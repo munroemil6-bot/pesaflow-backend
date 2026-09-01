@@ -58,30 +58,19 @@ def add_funds(wallet, amount, description=''):
         raise ValidationError("Amount must be at least KSh 10.00.")
 
     wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+    balance_before = wallet.balance
+    wallet.balance += amount
+    wallet.save(update_fields=['balance', 'updated_at'])
 
     wallet_transaction = WalletTransaction.objects.create(
         wallet=wallet,
         amount=amount,
         transaction_type=WalletTransaction.CREDIT,
-        description=description,
-        balance_before=wallet.balance,
-        balance_after=wallet.balance,  
-        status=WalletTransaction.PENDING,
+        description=description or 'Wallet funding',
+        balance_before=balance_before,
+        balance_after=wallet.balance,
+        status=WalletTransaction.SUCCESS,
     )
-
-  
-    from payments.services import initiate_mpesa_payment  
-
-    try:
-        initiate_mpesa_payment(
-            user=wallet.user,
-            amount=amount,
-            reference=str(wallet_transaction.id),
-        )
-    except Exception as exc:
-        wallet_transaction.status = WalletTransaction.FAILED
-        wallet_transaction.save(update_fields=['status'])
-        raise ValidationError(f"Failed to initiate M-PESA payment: {exc}")
 
     return wallet_transaction
 

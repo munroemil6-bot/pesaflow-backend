@@ -66,10 +66,17 @@ def add_funds(request):
         wallet_transaction = services.add_funds(
             wallet,
             serializer.validated_data['amount'],
-            serializer.validated_data.get('description', ''),
+            serializer.validated_data.get('description', 'Wallet funding'),
         )
     except Exception as exc:
         return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     result = WalletTransactionSerializer(wallet_transaction)
-    return Response(result.data, status=status.HTTP_201_CREATED)
+    return Response({
+        'message': 'Wallet funded successfully.',
+        'wallet': {
+            'balance': wallet.balance,
+            'currency': wallet.currency,
+        },
+        **result.data,
+    }, status=status.HTTP_201_CREATED)
