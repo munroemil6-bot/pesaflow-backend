@@ -67,6 +67,32 @@ class AuthenticationEndpointTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_deactivated_account_cannot_login_until_reactivated(self):
+        self.client.post(self.register_url, self.payload(), format="json")
+        user = User.objects.get(email="mason@example.com")
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        response = self.client.post(
+            self.login_url,
+            {"email": "mason@example.com", "password": "PesaFlow!StrongPassword2026"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            response.data["detail"],
+            "Your account has been deactivated. Please contact the admin on 0723274962.",
+        )
+
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+        response = self.client.post(
+            self.login_url,
+            {"email": "mason@example.com", "password": "PesaFlow!StrongPassword2026"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     def test_public_auth_endpoints_ignore_a_stale_authorization_header(self):
         """An old browser token must not prevent a person from logging in again."""
         self.client.credentials(HTTP_AUTHORIZATION="Bearer expired-or-invalid-token")

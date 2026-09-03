@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .models import User
 from .serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
@@ -62,7 +63,7 @@ def login(request):
     serializer.is_valid(raise_exception=True)
 
     lookup = {"email__iexact": serializer.validated_data.get("email")} if serializer.validated_data.get("email") else {"phone": serializer.validated_data.get("phone")}
-    user = UserSerializer.Meta.model.objects.filter(**lookup).first()
+    user = User.objects.filter(**lookup).first()
 
     if user and not user.is_active:
         return Response(

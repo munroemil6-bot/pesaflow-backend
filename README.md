@@ -136,6 +136,7 @@ These endpoints require an authenticated administrator:
 GET /admin-dashboard/summary/
 GET /admin-dashboard/users/
 GET /admin-dashboard/users/<id>/
+PATCH /admin-dashboard/users/<id>/ with {"is_active": true|false}
 GET /admin-dashboard/transactions/
 GET /admin-dashboard/wallets/
 GET /admin-dashboard/analytics/

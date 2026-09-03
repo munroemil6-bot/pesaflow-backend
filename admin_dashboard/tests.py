@@ -32,3 +32,30 @@ class AdminDashboardApiTests(TestCase):
         self.client.force_authenticate(self.sender)
         response = self.client.get("/api/admin-dashboard/summary/")
         self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_deactivate_and_reactivate_user(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.patch(
+            f"/api/admin-dashboard/users/{self.sender.pk}/",
+            {"is_active": "not-a-boolean"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.patch(
+            f"/api/admin-dashboard/users/{self.sender.pk}/",
+            {"is_active": "false"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["user"]["is_active"])
+        self.assertFalse(User.objects.get(pk=self.sender.pk).is_active)
+
+        response = self.client.patch(
+            f"/api/admin-dashboard/users/{self.sender.pk}/",
+            {"is_active": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["user"]["is_active"])

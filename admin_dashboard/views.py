@@ -1,6 +1,7 @@
 """Administrator-only monitoring and reporting endpoints."""
 
 from django.http import Http404
+from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -44,9 +45,10 @@ def user_detail(request, user_id):
         is_active = request.data.get("is_active")
         if is_active is None:
             return Response({"detail": "is_active is required."}, status=400)
+        is_active = serializers.BooleanField().to_internal_value(is_active)
 
         user = result["user"]
-        user.is_active = bool(is_active)
+        user.is_active = is_active
         user.save(update_fields=["is_active", "updated_at"])
         return Response({"user": AdminUserSerializer(user).data, "wallet": AdminWalletSerializer(result["wallet"]).data if result["wallet"] else None,
                          "transaction_count": result["transaction_count"], "total_sent": result["total_sent"], "total_received": result["total_received"]})
