@@ -116,6 +116,72 @@ def initiate_stk_push(phone_number, amount):
 	}
 
 
+def initiate_mpesa_withdrawal(phone_number, amount):
+	"""Submit a no-fee wallet withdrawal to a Kenyan mobile number."""
+	try:
+		amount = Decimal(str(amount))
+	except (InvalidOperation, TypeError, ValueError) as exc:
+		raise ValueError('Amount must be a valid positive number') from exc
+	if amount <= 0:
+		raise ValueError('Amount must be a valid positive number')
+
+	phone_number = str(phone_number).strip()
+	if phone_number.startswith('+'):
+		phone_number = phone_number[1:]
+	if phone_number.startswith('0') and len(phone_number) == 10:
+		phone_number = f'254{phone_number[1:]}'
+	if not phone_number.isdigit() or len(phone_number) != 12 or not phone_number.startswith('254'):
+		raise ValueError('Phone number must be a Kenyan number in 254XXXXXXXXX format')
+
+	initiator_name = _required_setting('MPESA_INITIATOR_NAME')
+	security_credential = _required_setting('MPESA_SECURITY_CREDENTIAL')
+	shortcode = _required_setting('MPESA_SHORTCODE')
+	result_url = _required_setting('MPESA_RESULT_URL')
+	timeout_url = _required_setting('MPESA_TIMEOUT_URL')
+	payload = {
+		'InitiatorName': initiator_name,
+		'SecurityCredential': security_credential,
+		'CommandID': 'BusinessPayment',
+		'Amount': int(amount),
+		'PartyA': shortcode,
+		'PartyB': phone_number,
+		'Remarks': 'PesaFlow wallet withdrawal',
+		'QueueTimeOutURL': timeout_url,
+		'ResultURL': result_url,
+		'Occasion': 'Wallet withdrawal',
+	}
+	response = requests.post(
+		f'{_daraja_base_url()}/mpesa/b2c/v1/paymentrequest',
+		json=payload,
+		headers={'Authorization': f'Bearer {get_mpesa_access_token()}'},
+		timeout=30,
+	)
+	response.raise_for_status()
+	result = response.json()
+	return {
+		'conversation_id': result.get('ConversationID'),
+		'originator_conversation_id': result.get('OriginatorConversationID'),
+		'response_code': result.get('ResponseCode'),
+		'result_description': result.get('ResponseDescription'),
+		'raw_response': result,
+	}
+
+
+def handle_mpesa_withdrawal_callback(data):
+	"""Extract the result identifiers from a Daraja B2C callback."""
+	result = data.get('Result', data.get('result', {})) if isinstance(data, dict) else {}
+	if not isinstance(result, dict):
+		result = {}
+	return {
+		'conversation_id': result.get('ConversationID'),
+		'originator_conversation_id': result.get('OriginatorConversationID'),
+		'conversation_result': result.get('ResultCode'),
+		'result_description': result.get('ResultDesc') or result.get('ResultDescription'),
+		'transaction_id': result.get('TransactionID'),
+		'success': str(result.get('ResultCode')) == '0',
+	}
+
+
 def handle_mpesa_callback(data):
 	"""Extract the payment result from a Daraja callback payload."""
 	payload = data

@@ -39,6 +39,9 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
             'id',
             'amount',
             'transaction_type',
+            'status',
+            'phone_number',
+            'provider_reference',
             'description',
             'balance_before',
             'balance_after',
@@ -75,6 +78,25 @@ class AddFundsSerializer(serializers.Serializer):
         if value < Decimal('10.00'):
             raise serializers.ValidationError("Amount must be at least KSh 10.00.")
         return value
+
+
+class WithdrawFundsSerializer(serializers.Serializer):
+    """Input for withdrawing wallet funds to a Kenyan mobile number."""
+
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal('10.00'),
+    )
+    phone_number = serializers.CharField(max_length=20)
+
+    def validate_phone_number(self, value):
+        normalized = value.strip().replace('+', '', 1)
+        if normalized.startswith('0') and len(normalized) == 10:
+            normalized = f'254{normalized[1:]}'
+        if not normalized.isdigit() or len(normalized) != 12 or not normalized.startswith('254'):
+            raise serializers.ValidationError('Enter a valid Kenyan phone number.')
+        return normalized
 
 # TODO: WalletSerializer implementation
 # TODO: WalletBalanceSerializer implementation

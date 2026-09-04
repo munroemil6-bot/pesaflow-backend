@@ -11,4 +11,5 @@ urlpatterns = [
     path('analytics/', views.wallet_analytics, name='wallet-analytics'),
     path('history/', views.wallet_history, name='wallet-history'),
     path('add-funds/', views.add_funds, name='wallet-add-funds'),
+    path('withdraw/', views.withdraw_funds, name='wallet-withdraw'),
 ]

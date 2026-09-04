@@ -17,12 +17,12 @@ User = get_user_model()
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_user(username='naomi', password='testpass123')
+    return User.objects.create_user(email='naomi@example.com', password='testpass123')
 
 
 @pytest.fixture
 def other_user(db):
-    return User.objects.create_user(username='other', password='testpass123')
+    return User.objects.create_user(email='other@example.com', password='testpass123')
 
 
 @pytest.fixture
@@ -189,6 +189,62 @@ class TestAddFunds:
         
         wallet.refresh_from_db()
         assert wallet.balance == Decimal('1000.00')
+
+
+@pytest.mark.django_db
+class TestWithdrawFunds:
+
+    @patch('wallet.views.initiate_mpesa_withdrawal')
+    def test_withdraws_without_fee(self, mock_withdrawal, auth_client, wallet):
+        mock_withdrawal.return_value = {'conversation_id': 'AG_123'}
+
+        url = reverse('wallet:wallet-withdraw')
+        response = auth_client.post(url, {'amount': '250.00', 'phone_number': '0712345678'})
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        mock_withdrawal.assert_called_once_with('254712345678', Decimal('250.00'))
+        assert Decimal(response.data['wallet']['balance']) == Decimal('750.00')
+        assert response.data['phone_number'] == '254712345678'
+        assert response.data['provider_reference'] == 'AG_123'
+        assert response.data['status'] == WalletTransaction.PENDING
+
+    def test_withdrawal_rejects_insufficient_balance(self, auth_client, wallet):
+        url = reverse('wallet:wallet-withdraw')
+        response = auth_client.post(url, {'amount': '1001.00', 'phone_number': '0712345678'})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        wallet.refresh_from_db()
+        assert wallet.balance == Decimal('1000.00')
+
+    def test_withdrawal_rejects_invalid_phone(self, auth_client, wallet):
+        url = reverse('wallet:wallet-withdraw')
+        response = auth_client.post(url, {'amount': '100.00', 'phone_number': '123'})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    @patch('wallet.views.initiate_mpesa_withdrawal')
+    def test_failed_withdrawal_is_refunded(self, mock_withdrawal, auth_client, wallet, api_client):
+        mock_withdrawal.return_value = {'conversation_id': 'AG_FAIL'}
+        url = reverse('wallet:wallet-withdraw')
+        response = auth_client.post(url, {'amount': '250.00', 'phone_number': '0712345678'})
+        assert response.status_code == status.HTTP_202_ACCEPTED
+
+        callback_url = reverse('payments:withdrawal-callback')
+        callback = api_client.post(callback_url, {
+            'Result': {
+                'ConversationID': 'AG_FAIL',
+                'ResultCode': 1,
+                'ResultDesc': 'Recipient unavailable',
+            },
+        }, format='json')
+
+        assert callback.status_code == status.HTTP_200_OK
+        wallet.refresh_from_db()
+        assert wallet.balance == Decimal('1000.00')
+        assert WalletTransaction.objects.filter(
+            wallet=wallet,
+            status=WalletTransaction.FAILED,
+        ).exists()
 
 
 

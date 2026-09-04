@@ -16,8 +16,10 @@ from .serializers import (
     WalletAnalyticsSerializer,
     WalletTransactionSerializer,
     AddFundsSerializer,
+    WithdrawFundsSerializer,
 )
 from . import services
+from payments.services import initiate_mpesa_withdrawal
 
 
 @api_view(['GET'])
@@ -80,3 +82,39 @@ def add_funds(request):
         },
         **result.data,
     }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def withdraw_funds(request):
+    serializer = WithdrawFundsSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    wallet = services.get_or_create_wallet(request.user)
+
+    try:
+        wallet_transaction = services.withdraw_funds(
+            wallet,
+            serializer.validated_data['amount'],
+            serializer.validated_data['phone_number'],
+            initiate_mpesa_withdrawal,
+        )
+    except ValueError as exc:
+        return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as exc:
+        from requests import RequestException
+        if isinstance(exc, RequestException):
+            return Response(
+                {'detail': 'Unable to contact M-PESA at this time.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        from django.core.exceptions import ValidationError
+        if isinstance(exc, ValidationError):
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        raise
+
+    wallet.refresh_from_db()
+    return Response({
+        'message': 'Withdrawal requested successfully. No withdrawal fee was charged.',
+        'wallet': {'balance': wallet.balance, 'currency': wallet.currency},
+        **WalletTransactionSerializer(wallet_transaction).data,
+    }, status=status.HTTP_202_ACCEPTED)

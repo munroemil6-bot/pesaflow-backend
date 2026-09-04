@@ -108,6 +108,35 @@ def deduct_funds(wallet, amount, reason=''):
 
 
 @transaction.atomic
+def withdraw_funds(wallet, amount, phone_number, payout_service):
+    """Request a mobile payout and reserve the amount in the wallet ledger."""
+    amount = Decimal(amount)
+    if amount < Decimal('10.00'):
+        raise ValidationError("Amount must be at least KSh 10.00.")
+
+    locked_wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+    if locked_wallet.balance < amount:
+        raise ValidationError("Insufficient balance.")
+
+    payout = payout_service(phone_number, amount)
+    balance_before = locked_wallet.balance
+    locked_wallet.balance -= amount
+    locked_wallet.save(update_fields=['balance', 'updated_at'])
+
+    return WalletTransaction.objects.create(
+        wallet=locked_wallet,
+        amount=amount,
+        transaction_type=WalletTransaction.DEBIT,
+        status=WalletTransaction.PENDING,
+        phone_number=phone_number,
+        provider_reference=payout.get('conversation_id') or payout.get('originator_conversation_id') or '',
+        description='Mobile withdrawal (no fee)',
+        balance_before=balance_before,
+        balance_after=locked_wallet.balance,
+    )
+
+
+@transaction.atomic
 def add_funds_from_payment(wallet, amount, wallet_transaction=None):
     """
     Called after successful M-PESA payment.

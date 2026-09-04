@@ -11,11 +11,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 import requests
 
-from wallet.models import Wallet
+from wallet.models import Wallet, WalletTransaction
 from wallet.services import get_or_create_wallet, add_funds_from_payment
 
 from .serializers import MpesaSTKSerializer
-from .services import initiate_stk_push, handle_mpesa_callback
+from .services import (
+	handle_mpesa_callback,
+	handle_mpesa_withdrawal_callback,
+	initiate_stk_push,
+)
 from .models import MpesaPayment
 
 User = get_user_model()
@@ -152,6 +156,50 @@ def callback(request):
 		'wallet_balance': wallet.balance,
 		'mpesa_receipt_number': callback_data.get('mpesa_receipt_number'),
 	}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def withdrawal_callback(request):
+	"""Finalize or refund a wallet debit after Daraja reports its B2C result."""
+	callback_data = handle_mpesa_withdrawal_callback(request.data or {})
+	reference = callback_data.get('conversation_id') or callback_data.get('originator_conversation_id')
+	if not reference:
+		return Response({'detail': 'Incomplete withdrawal callback payload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+	with transaction.atomic():
+		wallet_transaction = WalletTransaction.objects.select_for_update().select_related('wallet').filter(
+			provider_reference=reference,
+			transaction_type=WalletTransaction.DEBIT,
+		).first()
+		if wallet_transaction is None:
+			return Response({'detail': 'Withdrawal transaction was not found.'}, status=status.HTTP_404_NOT_FOUND)
+		if wallet_transaction.status != WalletTransaction.PENDING:
+			return Response({'success': True, 'already_processed': True}, status=status.HTTP_200_OK)
+
+		if callback_data['success']:
+			wallet_transaction.status = WalletTransaction.SUCCESS
+			wallet_transaction.save(update_fields=['status'])
+		else:
+			wallet = Wallet.objects.select_for_update().get(pk=wallet_transaction.wallet_id)
+			balance_before = wallet.balance
+			wallet.balance += wallet_transaction.amount
+			wallet.save(update_fields=['balance', 'updated_at'])
+			WalletTransaction.objects.create(
+				wallet=wallet,
+				amount=wallet_transaction.amount,
+				transaction_type=WalletTransaction.CREDIT,
+				status=WalletTransaction.SUCCESS,
+				phone_number=wallet_transaction.phone_number,
+				description='Refund for failed mobile withdrawal',
+				balance_before=balance_before,
+				balance_after=wallet.balance,
+			)
+			wallet_transaction.status = WalletTransaction.FAILED
+			wallet_transaction.description = callback_data['result_description'] or 'Mobile withdrawal failed'
+			wallet_transaction.save(update_fields=['status', 'description'])
+
+	return Response({'success': callback_data['success']}, status=status.HTTP_200_OK)
 
 # TODO: @api_view(['GET']) check_payment_status view
 # TODO: @api_view(['POST']) simulate_payment view (for testing)
