@@ -33,6 +33,14 @@ services:
         sync: false
       - key: MPESA_CALLBACK_URL
         value: "https://pesaflow-backend-wdbv.onrender.com/api/payments/callback/"
+      - key: MPESA_INITIATOR_NAME
+        sync: false
+      - key: MPESA_SECURITY_CREDENTIAL
+        sync: false
+      - key: MPESA_RESULT_URL
+        value: "https://pesaflow-backend-wdbv.onrender.com/api/payments/withdrawal-callback/"
+      - key: MPESA_TIMEOUT_URL
+        value: "https://pesaflow-backend-wdbv.onrender.com/api/payments/withdrawal-callback/"
       - key: ADMIN_EMAIL
         value: "admin@gmail.com"
       - key: ADMIN_PHONE

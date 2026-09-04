@@ -71,6 +71,10 @@ MPESA_CONSUMER_SECRET=
 MPESA_SHORTCODE=
 MPESA_PASSKEY=
 MPESA_CALLBACK_URL=
+MPESA_INITIATOR_NAME=
+MPESA_SECURITY_CREDENTIAL=
+MPESA_RESULT_URL=
+MPESA_TIMEOUT_URL=
 ```
 
 ## API Endpoints
@@ -98,6 +102,7 @@ GET  /wallet/balance/
 GET  /wallet/analytics/
 GET  /wallet/history/
 POST /wallet/add-funds/
+POST /wallet/withdraw/
 ```
 
 ### Beneficiaries
@@ -124,6 +129,7 @@ GET  /transactions/<id>/
 
 ```text
 POST /payments/stk-push/
+POST /payments/withdrawal-callback/
 ```
 
 The STK push endpoint requires authentication and Daraja sandbox credentials. The callback, payment-status, simulation, and access-token routes are not currently exposed by `payments/urls.py`.
